@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hexagonal Orders</title>
+    <meta name="description" content="An order-processing app and an interactive map of its Hexagonal Architecture." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpolygon points='16,2 29,9 29,23 16,30 3,23 3,9' fill='%234f46e5'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="/styles.css" />
+    <script type="module" src="/js/main.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><polygon points="16,2 29,9 29,23 16,30 3,23 3,9" /></svg>
+        <div>
+          <div class="brand-name">Hexagonal Orders</div>
+          <div class="brand-sub">A ports &amp; adapters learning app</div>
+        </div>
+      </div>
+      <nav class="tabs" role="tablist" aria-label="Views">
+        <button type="button" role="tab" id="tab-shop" data-tab="shop" aria-controls="view-shop" aria-selected="true">Shop</button>
+        <button type="button" role="tab" id="tab-explorer" data-tab="explorer" aria-controls="view-explorer" aria-selected="false">Architecture Explorer</button>
+      </nav>
+      <div class="config-chips" id="config-chips" aria-label="Running configuration"></div>
+    </header>
+
+    <main>
+      <!-- ───────────────────────── SHOP ───────────────────────── -->
+      <section id="view-shop" role="tabpanel" aria-labelledby="tab-shop">
+        <p class="intro">
+          This page is a <strong>driving adapter</strong>: it only sends HTTP requests and shows the answers.
+          Prices, totals, rules and payment outcomes all come from the server's core.
+        </p>
+
+        <div class="shop-grid">
+          <section class="card" aria-labelledby="catalog-title">
+            <div class="card-head">
+              <h2 id="catalog-title">Product catalog</h2>
+              <span class="hint">GET /products → ListProducts → InMemoryProductCatalog</span>
+            </div>
+            <div class="product-list" id="product-list"><p class="muted">Loading products…</p></div>
+          </section>
+
+          <section class="card" aria-labelledby="order-title">
+            <div class="card-head">
+              <h2 id="order-title">Your order</h2>
+              <span class="hint">POST /orders → PlaceOrder → PlaceOrderService</span>
+            </div>
+
+            <label class="field-label" for="customer-id">Customer id</label>
+            <input id="customer-id" class="input" value="alice" autocomplete="off" spellcheck="false" />
+            <p class="hint">Use <code>timeout</code> to simulate a lost payment connection. An empty id is rejected by the domain.</p>
+
+            <ul class="cart" id="cart-items" aria-label="Items in your order"></ul>
+            <p class="muted" id="cart-empty">No items yet. Add products from the catalog. (Placing an empty order shows a domain rule in action.)</p>
+
+            <div class="summary">
+              <span>Estimated total</span>
+              <strong id="cart-estimate">$0.00</strong>
+            </div>
+            <p class="hint">
+              The estimate only multiplies prices the server sent. The server re-prices every item from its own catalog and
+              applies the rules (positive whole quantities, at most $10,000). Try a quantity of 0 or 1000.
+            </p>
+
+            <div class="key-box">
+              <div>
+                <span class="field-label">Idempotency-Key</span>
+                <code id="idem-key"></code>
+                <p class="hint" id="key-state"></p>
+              </div>
+              <button type="button" class="btn btn-ghost" id="new-key">New key</button>
+            </div>
+
+            <button type="button" class="btn btn-primary btn-block" id="place-order">Place order</button>
+            <p class="feedback" id="order-feedback" aria-live="polite"></p>
+          </section>
+        </div>
+
+        <section class="card result" id="result-card" hidden aria-live="polite"></section>
+
+        <section class="card" aria-labelledby="history-title">
+          <div class="card-head">
+            <h2 id="history-title">Order history</h2>
+            <button type="button" class="btn btn-ghost" id="history-refresh">Refresh</button>
+          </div>
+          <p class="hint" id="history-storage"></p>
+          <div class="table-wrap">
+            <table class="history">
+              <thead>
+                <tr><th>Time</th><th>Order</th><th>Customer</th><th class="num">Total</th><th>Status</th><th></th></tr>
+              </thead>
+              <tbody id="history-body"></tbody>
+            </table>
+          </div>
+          <p class="muted" id="history-empty">No orders yet.</p>
+          <div class="details-box" id="order-details" hidden></div>
+        </section>
+      </section>
+
+      <!-- ─────────────────── ARCHITECTURE EXPLORER ─────────────────── -->
+      <section id="view-explorer" role="tabpanel" aria-labelledby="tab-explorer" hidden>
+        <div class="explorer-toolbar">
+          <div class="segmented" role="group" aria-label="Arrow mode">
+            <button type="button" data-mode="runtime" aria-pressed="true">Runtime flow</button>
+            <button type="button" data-mode="source" aria-pressed="false">Source-code dependencies</button>
+          </div>
+          <div class="legend" aria-label="Legend">
+            <span><span class="legend-swatch is-interface"></span> interface (port)</span>
+            <span><span class="legend-swatch"></span> concrete code</span>
+            <span><span class="legend-swatch is-active"></span> plugged in</span>
+            <span><span class="legend-line flow"></span> recorded path</span>
+          </div>
+        </div>
+        <div class="mode-explainer" id="mode-explainer" aria-live="polite"></div>
+
+        <div class="explorer-main">
+          <div class="diagram-scroll">
+            <div class="diagram-wrap" id="diagram-wrap">
+              <svg id="edges" aria-hidden="true">
+                <defs>
+                  <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="marker" /></marker>
+                  <marker id="arrow-hl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="marker-hl" /></marker>
+                  <marker id="arrow-flow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="marker-flow" /></marker>
+                </defs>
+              </svg>
+              <div class="diagram" id="diagram"></div>
+              <div class="composition-row" id="composition-row"></div>
+            </div>
+          </div>
+          <aside class="card details" id="details" aria-live="polite" aria-label="Component details"></aside>
+        </div>
+
+        <div class="explorer-lower">
+          <section class="card" aria-labelledby="scenarios-title">
+            <div class="card-head">
+              <h2 id="scenarios-title">Demo scenarios</h2>
+              <span class="hint">Each one sends real requests to this server</span>
+            </div>
+            <div class="scenario-list" id="scenario-list"></div>
+            <p class="feedback" id="scenario-status" aria-live="polite"></p>
+            <div class="actions">
+              <button type="button" class="btn" id="play-last-shop" disabled>▶ Replay my last Shop order</button>
+              <button type="button" class="btn btn-ghost" id="show-conceptual">Show conceptual flow (not recorded)</button>
+            </div>
+            <h3 class="subhead">Running configuration</h3>
+            <div id="explorer-config"></div>
+            <p class="hint">Restart with e.g. <code>STORAGE=file npm start</code> and the green dot moves to JsonFileOrderRepository. The core doesn't change.</p>
+          </section>
+
+          <section class="card run" id="run-panel" hidden aria-labelledby="run-title">
+            <div class="card-head">
+              <h2 id="run-title"></h2>
+              <span id="run-kind"></span>
+            </div>
+            <div class="run-grid">
+              <div>
+                <div class="actions">
+                  <button type="button" class="btn" id="run-replay">↻ Replay</button>
+                  <label class="speed">Speed
+                    <select id="run-speed">
+                      <option value="1200">Slow</option>
+                      <option value="700" selected>Normal</option>
+                      <option value="250">Fast</option>
+                    </select>
+                  </label>
+                  <button type="button" class="btn btn-ghost" id="clear-highlights">Clear highlights</button>
+                </div>
+                <ol class="timeline" id="timeline" aria-label="Execution steps"></ol>
+                <p class="hint">
+                  <span class="src src-recorded">recorded</span> a real port call captured by the server's DevTracer ·
+                  <span class="src src-inferred">inferred</span> a domain step proven by recorded data ·
+                  <span class="src src-browser">browser</span> measured in this page
+                </p>
+              </div>
+              <div>
+                <div id="run-explain"></div>
+                <div id="run-requests"></div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <section class="card dip" aria-labelledby="dip-title">
+          <h2 id="dip-title">Why do runtime calls go outward while imports point inward?</h2>
+          <div class="dip-diagrams">
+            <div class="dip-row">
+              <span class="dip-label">Runtime</span>
+              <span class="chip layer-service">PlaceOrderService</span><span class="dip-arrow">calls →</span>
+              <span class="chip layer-out-port is-interface">PaymentGateway</span><span class="dip-arrow">dispatches to →</span>
+              <span class="chip layer-driven">FakePaymentGateway</span>
+            </div>
+            <div class="dip-row">
+              <span class="dip-label">Source</span>
+              <span class="chip layer-service">PlaceOrderService</span><span class="dip-arrow">imports →</span>
+              <span class="chip layer-out-port is-interface">PaymentGateway</span><span class="dip-arrow">← imports &amp; implements</span>
+              <span class="chip layer-driven">FakePaymentGateway</span>
+            </div>
+          </div>
+          <p>
+            PlaceOrderService needs a payment to happen, so at runtime the call travels <em>out</em> of the core. But the core
+            can't import an adapter, because then the business logic would depend on infrastructure. So the core defines the
+            interface it needs (<code>PaymentGateway</code>), and the adapter imports <em>that</em> and implements it. The source-code
+            arrow on the adapter side is reversed relative to the call: that's <strong>dependency inversion</strong>. The composition
+            root (<code>buildApp()</code>) is the one place that connects the two at startup; that's <strong>dependency
+            injection</strong>.
+          </p>
+          <div class="dip-excerpts" id="dip-excerpts"><p class="muted">Loading code from your project…</p></div>
+        </section>
+      </section>
+    </main>
+  </body>
+</html>

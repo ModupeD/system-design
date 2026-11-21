@@ -1,0 +1,20 @@
+{
+  "name": "hexagonal-architecture",
+  "version": "1.0.0",
+  "description": "A learning project: an order + payment app built with Hexagonal Architecture (Ports & Adapters).",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node src/main-http.ts",
+    "cli": "node src/main-cli.ts",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.8.0"
+  }
+}
